@@ -5,3 +5,5 @@
 由于在Vista以上该vbs需要管理员权限才能正常运行，所以建议用类似vbs2exe的编译器将vbs编辑为exe并添加admin manifest。    
 
 P.S. 个人写这个的唯一目的就是dán老师U盘里的课(lou)件(zhao)。
+
+P.P.S 有人问我为什么取这个名字，解释一下 U(SB)-spy-er.
