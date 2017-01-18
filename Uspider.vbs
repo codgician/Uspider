@@ -1,4 +1,4 @@
-' Uspider v1.3.0 by jimmy19990
+' Uspider v1.3.1 by jimmy19990
 ' ==========================
 ' With great might comes great responsibility. DO NOT BE EVIL.
 ' URL: https://github.com/jimmy19990/USpider.vbs
@@ -82,17 +82,17 @@ Do While True
                 End If
                 ' Ensure only copy once.
                 ' Check if the device is in custom list.
-                isExcluded = false
+                isIncluded = false
                 If VarType(customList) = 8204 Then
                     If InStr(Join(customList, "|"), objEvent.TargetInstance.VolumeSerialNumber) > 0 Then
-                        isExcluded = true
+                        isIncluded = true
                     End If
                     If logging = true Then
-                        objLogFile.Write("[" & Now & "] " & "isExcluded = " & isExcluded) & vbcrlf
+                        objLogFile.Write("[" & Now & "] " & "isIncluded = " & isIncluded) & vbcrlf
                     End If
                 End If
                 
-                If isExcluded = isBlackList Then
+                If isIncluded = isBlackList Then
                     ' Initialize Work Folder.
                     workFolder = destFolder + "\" + objEvent.TargetInstance.VolumeSerialNumber
                     If objFileSystem.folderExists(workFolder) = false Then
@@ -102,7 +102,7 @@ Do While True
                     copyCommand = "cmd.exe /c xcopy " + objEvent.TargetInstance.DeviceId + "\* " + workFolder + " " + xcopyParameters
                     objWScriptShell.Run(copyCommand), 0
                     If logging = true Then
-                        objLogFile.Write("[" & Now & "] " & "Files copied from " & objEvent.TargetInstance.DeviceId & "\ to " & workFolder) & vbcrlf
+                        objLogFile.Write("[" & Now & "] " & "Copying Thread Started. From " & objEvent.TargetInstance.DeviceId & "\ to " & workFolder) & vbcrlf
                     End If
                 End If
             ' Remove
