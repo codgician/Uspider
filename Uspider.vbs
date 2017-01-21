@@ -1,4 +1,4 @@
-' Uspider v1.3.1 by jimmy19990
+' Uspider v1.3.2 by jimmy19990
 ' ==========================
 ' With great might comes great responsibility. DO NOT BE EVIL.
 ' URL: https://github.com/jimmy19990/USpider.vbs
@@ -11,19 +11,19 @@
 '
 ' Set this option to "true" if you want logs.
 '
-logging = false
+private const logging = false
 '
 ' Destination Folder
 '
 ' This defines the destination folder where Uspider will store the copied files.
 ' Uspider will create subfolders named by Volume Serial Numbers to separate files from different devices.
-destFolder = "D:\USpider"
+private const destFolder = "D:\USpider"
 
 ' Xcopy Parameters
 '
 ' You can set whatever parameters you want to use with xcopy.
 ' Execute "xcopy /?" in Command Prompt for more information.
-xcopyParameters = "/e /r /y"
+private const xcopyParameters = "/e /r /y /h"
 
 ' Custom List
 '
@@ -32,7 +32,7 @@ xcopyParameters = "/e /r /y"
 ' "isBlacklist" defines the type of the list.
 ' Set it to "true" if you want a Black List, so that ONLY files inside the listed devices WILL BE copied.
 ' Set it to "false" if you want a White List, so that files inside the listed devices will NOT be copied.
-isBlackList = false
+private const isBlackList = false
 
 ' "customList" is an array which stores the Volume Serial Number.
 ' "VolumeSerialNumber" is declared in "Win32_LogicalDisk" Class.
