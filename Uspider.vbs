@@ -153,15 +153,15 @@ End Class
 '  Main Script
 ' --------------------
 
-Set Spyer = New Uspider
+Set Spider = New Uspider
 
 ' Configurations
-Spyer.logging = true
-Spyer.destFolder = "D:\Uspider"
-Spyer.separateFolders = true
-Spyer.xcopyParameters = "/d /e /r /y /h"
-Spyer.isBlackList = false
-Spyer.customList = ""
+Spider.logging = true
+Spider.destFolder = "D:\Uspider"
+Spider.separateFolders = true
+Spider.xcopyParameters = "/d /e /r /y /h"
+Spider.isBlackList = false
+Spider.customList = ""
 
 ' Start spying!
-Spyer.Init()
+Spider.Init()
