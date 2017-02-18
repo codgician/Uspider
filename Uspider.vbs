@@ -1,9 +1,9 @@
-' Uspider v2.0.0.alpha by jimmy19990
+' Uspider v2.0.0.alpha by codgician
 ' ====================================
 ' The brand new Uspider, more classy than ever.
 ' With great might comes great responsibility. DO NOT BE EVIL.
 ' Lincensed under MIT License.
-' URL: https://github.com/jimmy19990/USpider.vbs
+' URL: https://github.com/codgician/USpider.vbs
 
 Class Uspider
     Private objFileSystem, objWMIService, objWScriptShell, colEvents
