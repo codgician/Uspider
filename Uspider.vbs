@@ -1,70 +1,46 @@
-' Uspider v2.0.0 by codgician
+' Uspider v2.0.1 by codgician
 ' ====================================
 ' The brand new Uspider, more classy than ever.
-' With great might comes great responsibility. DO NOT BE EVIL.
+' With great power comes great responsibility. DO NOT BE EVIL.
 ' Lincensed under MIT License.
-' URL: https://github.com/codgician/USpider.vbs
+' URL: https://github.com/codgician/USpider
 
 Class Uspider
-    Private objFileSystem, objWMIService, objWScriptShell, colEvents
-    Private bool_logging, string_logDir, string_destFolder, bool_separateFolders, string_xcopyParameters, bool_isBlackList, string_customList
+
+    Private colEvents, objFileSystem, objWMIService, objWScriptShell
+    Public customList, destDir, isBlackList, logging, logDir, logName, separateFolders, xcopyParameters
     
-    ' Get parameters.
-    Public Property Let logging(logOpt)
-        bool_logging = logOpt
-    End Property
-	
-	Public Property Let logDir(logDirOpt)
-        string_logDir = logDirOpt
-    End Property
- 
-    Public Property Let destFolder(destFolderOpt)
-        string_destFolder = destFolderOpt
-    End Property
-    
-    Public Property Let separateFolders(separateFoldersOpt)
-        bool_separateFolders = separateFoldersOpt
-    End Property
-    
-    Public Property Let xcopyParameters(xcopyParametersOpt)
-        string_xcopyParameters = xcopyParametersOpt
-    End Property
-    
-    Public Property Let isBlackList(isBlackListOpt)
-        bool_isBlackList = isBlackListOpt
-    End Property
-    
-    Public Property Let customList(customListOpt)
-        string_customList = customListOpt
-    End Property
-    
-    Private Sub Class_Initialize() 
+    Private Sub Class_Initialize()
+
         Set objFileSystem = CreateObject("Scripting.FileSystemObject")
         Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
         Set objWScriptShell = CreateObject("WScript.Shell")
         Set colEvents = objWMIService.ExecNotificationQuery _
-            ("Select * From __InstanceOperationEvent Within 10 Where " _
-                & "TargetInstance isa 'Win32_LogicalDisk'")
+            ("Select * From __InstanceOperationEvent Within 10 Where TargetInstance isa 'Win32_LogicalDisk'")
+
     End Sub
 
-    Private Sub Class_Terminate() 
+    Private Sub Class_Terminate()
+
         Set objFileSystem = Nothing
         Set objWMIService = Nothing
         Set objWScriptShell = Nothing
         Set colEvents = Nothing
+
     End Sub
     
     Private Function checkList(objTargetDevice)
+
         ' Check if the device is in custom list.
         isIncluded = false
-        If IsEmpty(bool_isBlackList) = false and IsEmpty(string_customList) = false Then
-            If InStr(string_customList, objTargetDevice.VolumeSerialNumber) > 0 Then
+        If IsEmpty(isBlackList) = false and IsEmpty(customList) = false Then
+            If InStr(customList, objTargetDevice.VolumeSerialNumber) > 0 Then
                 isIncluded = true
             End If
                         
             log "Custom List Found! isIncluded = " & isIncluded
 
-             If isIncluded = bool_isBlackList Then
+            If isIncluded = isBlackList Then
                 log "Initialize copying..."
                 checkList = true
             Else
@@ -72,69 +48,109 @@ Class Uspider
                 checkList = false
             End If
         Else
-            log "No list is detected. Skip checking..."
+            log "No list detected. Skip checking..."
             checkList = true
         End If
+
     End Function
     
     Private Function xcopy(objTargetDevice, destDir)
+
         ' Initialize Destination Folder.
         If objFileSystem.folderExists(destDir) = false Then
-            objFileSystem.CreateFolder destDir
+            objFileSystem.CreateFolder(destDir)
+            If objFileSystem.folderExists(destDir) <> true  Then
+                MsgBox "Uspider", vbCritical + vbOKOnly, "Failed to create destination directory." + chr(13) + "Uspider will now exit..."
+                WScript.Quit
+            End If
         End If
         
         ' Initialize Work Folder.
-        If bool_separateFolders = true Then
-			subFolder = objTargetDevice.VolumeSerialNumber
+        If separateFolders = true Then
+			subDir = objTargetDevice.VolumeSerialNumber
 			
-			If IsEmpty(subFolder) = true Then
-				subFolder = "UNKNOWN"
+			If IsEmpty(subDir) = true Then
+				subDir = "UNKNOWN"
 			End If
 			
-            workFolder = destDir + "\" + subFolder
+            workDir = destDir + "\" + subDir
         Else
-            workFolder = destDir
+            workDir = destDir
+
         End If
                         
-        If objFileSystem.folderExists(workFolder) = false Then
-            objFileSystem.CreateFolder workFolder
+        If objFileSystem.folderExists(workDir) = false Then
+
+            objFileSystem.CreateFolder(workDir)
+
+            If objFileSystem.folderExists(workDir) <> true  Then
+                MsgBox "Uspider", vbCritical + vbOKOnly, "Failed to create work directory." + chr(13) + "Uspider will now exit..."
+                WScript.Quit
+            End If
+
         End If
         
-		' Execute copying.
-        copyCommand = "cmd.exe /c xcopy " + objTargetDevice.DeviceId + "\* " + workFolder + " " + string_xcopyParameters
+        ' Execute copying.
+        copyCommand = "cmd.exe /c xcopy " + objTargetDevice.DeviceId + "\* " + workDir + " " + xcopyParameters
         objWScriptShell.Run(copyCommand), 0, false
         
         log "Copying Thread Started. Command: " & copyCommand
+
     End Function
     
     Private Function log(logText)
-        ' Check if bool_logging is on.
-        If bool_logging <> true Then
+
+        ' Check if logging is on.
+        If logging <> true Then
             Exit Function
         End If
         
-        ' Initialize bool_logging.
-       If objFileSystem.FileExists(string_logDir) <> true  Then
-            Set objLogFile = objFileSystem.CreateTextFile(string_logDir)			
+        ' Initialize logging.
+        If objFileSystem.folderExists(logDir) <> true  Then
+
+            objFileSystem.CreateFolder(logDir)
+
+            ' Check whether success.
+            If objFileSystem.folderExists(logDir) <> true  Then
+                MsgBox "Uspider", vbCritical + vbOKOnly, "Failed to create log directory." + chr(13) + "Uspider will now exit..."
+                WScript.Quit
+            End If
+
+        End If
+
+        If objFileSystem.FileExists(logDir + "\" + logName) <> true  Then
+
+            Set objLogFile = objFileSystem.CreateTextFile(logDir + "\" + logName)			
             objLogFile.Close
+
+            ' Check whether success.
+            If objFileSystem.FileExists(logDir + "\" + logName) <> true  Then
+                MsgBox "Uspider", vbCritical + vbOKOnly, "Failed to create log file." + chr(13) + "Uspider will now exit..."
+                WScript.Quit
+            End If
+
         End If
         
-        Set objLogFile = objFileSystem.OpenTextFile(string_logDir, 8, True)
-        
+        Set objLogFile = objFileSystem.OpenTextFile(logDir + "\" + logName, 8, True)
         objLogFile.Write("[" & Now & "] " & logText) & vbcrlf
-        
         objLogFile.Close
+    
     End Function
     
     Private Function watchDog()
+
         log "Uspider is now started..."
+
         Do While True
+    
             Set objEvent = colEvents.NextEvent
             Set objTargetDevice = objEvent.TargetInstance
             
             ' Check if the target device type is Removable Device (DriveType = 2).
             If objTargetDevice.DriveType = 2 Then
+
                 Select Case objEvent.Path_.Class
+
                     ' Insert
                     Case "__InstanceCreationEvent"
                                 
@@ -142,22 +158,39 @@ Class Uspider
                             " | Label: " & objTargetDevice.VolumeName & " | SN:" & objTargetDevice.VolumeSerialNumber
 
                         If checkList(objTargetDevice) = true Then
-                            xcopy objTargetDevice, string_destFolder
+                            xcopy objTargetDevice, destDir
                         End If
                         
                     ' Remove
                     Case "__InstanceDeletionEvent"
                         log "Device Removed. DeviceID: " & objTargetDevice.DeviceId & _
                             " | Label: " & objTargetDevice.VolumeName & " | SN:" & objTargetDevice.VolumeSerialNumber
+  
                 End Select
+
             End If
+    
         Loop
+
     End Function
     
     Public Function Init()
+
+        ' Validate parameters
+        If Right(destDir, 1) = "\" Then
+            destDir = Left(destDir, len(destDir) - 1)
+        End If
+
+        If Right(logDir, 1) = "\" Then
+            logDir = Left(logDir, len(logDir) - 1)
+        End If
+
         log "Initialization Finished."
+
         watchDog()
+
     End Function
+
 End Class
 
 ' --------------------
@@ -167,13 +200,17 @@ End Class
 Set Spider = New Uspider
 
 ' Configurations
-Spider.logging = true
-Spider.destFolder = "D:\Uspider"
+Spider.destDir = "D:\Uspider"
 Spider.separateFolders = true
-Spider.xcopyParameters = "/d /e /r /y /h /EXCLUDE:~$"
-Spider.isBlackList = false  ' Blacklist: Files from drives inside the list will be copied.
+
+Spider.xcopyParameters = "/d /e /r /y /h"
+
 Spider.customList = ""
-Spider.logDir = "D:\Uspider_log.txt"
+Spider.isBlackList = false  ' Blacklist: Files from drives inside the list will be copied.
+
+Spider.logging = true
+Spider.logDir = "D:"
+Spider.logName = "USpiderLog.txt"
 
 ' Start spying!
 Spider.Init()

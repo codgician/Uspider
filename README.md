@@ -7,12 +7,21 @@
 
 个人写这个的唯一目的就是dán老师U盘里的课(lou)件(zhao)。 
 
-P.S. 对于Uspider的配置说明请查阅Wiki。
+P.S. 对于Uspider的配置说明请查阅[Wiki](https://github.com/codgician/uspider/wiki)。
 
 P.P.S 有人问我为什么取这个名字，解释一下 U(SB)-spy-er。 
 
 ## 更新日志
+#### 2.0.1 （2017年8月23日） 
+
+- 假期都去忙codgic的事情了，没时间重写啦QAQ。
+- 整理了一下代码。
+- 将logDir参数拆分为logDir和logName。
+- 增加文件（夹）创建后的错误检查。
+- 尴尬地发现xcopy的exclude参数用错了，泥萌还是去自定义xcopyParameters吧（逃
+
 #### 2.0.0 （2017年4月23日）
+
 * 感觉好像把Uspider封装成了一个Class也并没有什么卵用…… 计划高考后用C#重写。
 * 默认exclude临时文件。
 * 可自定义日志文件路径（以避免xp下将Uspider设成启动项后无法创建日志文件）。
